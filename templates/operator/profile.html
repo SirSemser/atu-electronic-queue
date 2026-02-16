@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Профиль оператора</title>
+</head>
+<body>
+
+<h2>Профиль: {{ operator.username }}</h2>
+<p>Desk: {{ desk }}</p>
+
+<p><a href="{% url 'operator_dashboard' %}">← Назад</a></p>
+
+<form method="post">
+  {% csrf_token %}
+  <label>Email:</label><br>
+  <input type="email" name="email" value="{{ email }}" style="width:320px"><br><br>
+  <button type="submit">Сохранить</button>
+</form>
+
+</body>
+</html>

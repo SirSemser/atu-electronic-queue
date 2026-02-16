@@ -1,0 +1,315 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1"/>
+  <title>Оператор • Электронная очередь</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <style>
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+    .pill{padding:6px 10px;border-radius:999px;background:rgba(255,255,255,.08);display:inline-block}
+    table{width:100%;border-collapse:collapse;margin-top:12px}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08);text-align:left;vertical-align:top}
+    .muted{opacity:.8}
+    .btnSmall{padding:10px 12px;border-radius:12px;font-weight:800}
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <div class="header">
+    <div class="brand">
+      <div class="title">Оператор / Оператор</div>
+      <div class="sub">Desk: <b id="deskText">{{ desk }}</b> • {{ operator.username }}</div>
+    </div>
+
+    <div class="lang">
+      <button id="btnRu" class="active" onclick="setLang('ru')">RU</button>
+      <button id="btnKz" onclick="setLang('kz')">KZ</button>
+    </div>
+  </div>
+
+  <div class="card">
+    {% for message in messages %}
+      <p class="small" style="color:#ffdca8">{{ message }}</p>
+    {% endfor %}
+
+    <div class="row" style="margin-top:10px">
+      <form method="post" action="{% url 'operator_logout' %}" style="display:inline;">
+        {% csrf_token %}
+        <button class="btn secondary btnSmall" type="submit" id="btnLogout">Выйти</button>
+      </form>
+
+      {% if flags.profile_edit %}
+        <a class="link" href="{% url 'operator_profile' %}" id="lnkProfile">Профиль</a>
+      {% endif %}
+
+      {% if flags.password_change %}
+        <span class="muted">|</span>
+        <a class="link" href="{% url 'operator_password_change' %}" id="lnkPassword">Сменить пароль</a>
+      {% endif %}
+
+      {% if flags.download_logs %}
+        <span class="muted">|</span>
+        <a class="link" href="{% url 'operator_logs_csv' %}" id="lnkMyLog">Скачать мой журнал (CSV)</a>
+      {% endif %}
+
+      {% if user.is_staff %}
+        <span class="muted">|</span>
+        <a class="link" href="{% url 'admin_logs_csv' %}" id="lnkAdminLog">Админ: скачать все журналы (CSV)</a>
+      {% endif %}
+    </div>
+
+    <div class="row" style="margin-top:14px">
+      <div class="pill">
+        <span id="lblCurrent">Текущий вызванный</span>:
+        <b id="currentBox">{% if current %}{{ current.number }}{% else %}—{% endif %}</b>
+      </div>
+
+      {% if flags.call_next %}
+        <button class="btn btnSmall" id="btnCallNext" onclick="callNext()">Вызвать следующего</button>
+      {% else %}
+        <span class="small muted" id="callNextOff">Вызов следующего отключён</span>
+      {% endif %}
+
+      <button class="btn secondary btnSmall" onclick="refreshQueue(true)" id="btnRefresh">Обновить</button>
+      <span class="small muted" id="lastUpdate"></span>
+    </div>
+
+    <h3 style="margin:14px 0 0" id="lblQueue">Очередь (PENDING)</h3>
+
+    <table>
+      <thead>
+        <tr>
+          <th id="thNum">Номер</th>
+          <th id="thSvc">Услуга</th>
+          <th id="thCat">Категория</th>
+          <th id="thFio">ФИО</th>
+          <th id="thPhone">Телефон</th>
+          <th id="thStatus">Статус</th>
+          <th id="thActions">Действия</th>
+        </tr>
+      </thead>
+      <tbody id="queueRows">
+        {% for t in tickets %}
+          <tr>
+            <td><b>{{ t.number }}</b></td>
+            <td>{{ t.service }}</td>
+            <td>{{ t.category }}</td>
+            <td>{{ t.fio }}</td>
+            <td>{{ t.phone }}</td>
+            <td>{{ t.status }}</td>
+            <td class="muted">—</td>
+          </tr>
+        {% empty %}
+          <tr><td colspan="7" id="emptyRow">Нет талонов</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <div id="toast" class="toast"></div>
+  </div>
+</div>
+
+<script src="{% static 'assets/js/ui.js' %}"></script>
+<script>
+  const FLAGS = {
+    call_next: {{ flags.call_next|yesno:"true,false" }},
+    set_status: {{ flags.set_status|yesno:"true,false" }},
+    autorefresh: {{ flags.autorefresh|yesno:"true,false" }},
+  };
+
+  const UI = {
+    ru: {
+      current: "Текущий вызванный",
+      callNext: "Вызвать следующего",
+      refresh: "Обновить",
+      queue: "Очередь (PENDING)",
+      logout: "Выйти",
+      thNum: "Номер",
+      thSvc: "Услуга",
+      thCat: "Категория",
+      thFio: "ФИО",
+      thPhone: "Телефон",
+      thStatus: "Статус",
+      thActions: "Действия",
+      empty: "Нет талонов",
+      btnAccept: "Принять",
+      btnDone: "DONE",
+      btnCancel: "CANCEL",
+      btnReturn: "Вернуть",
+      alreadyCurrent: "Уже есть текущий талон (ACCEPTED). Завершите/отмените его.",
+      updated: "Обновлено",
+      error: "Ошибка",
+      actionsOff: "Действия отключены админом",
+    },
+    kz: {
+      current: "Ағымдағы шақырылған",
+      callNext: "Келесіні шақыру",
+      refresh: "Жаңарту",
+      queue: "Кезек (PENDING)",
+      logout: "Шығу",
+      thNum: "Нөмір",
+      thSvc: "Қызмет",
+      thCat: "Категория",
+      thFio: "Аты-жөні",
+      thPhone: "Телефон",
+      thStatus: "Күйі",
+      thActions: "Әрекеттер",
+      empty: "Талон жоқ",
+      btnAccept: "Қабылдау",
+      btnDone: "Аяқтау",
+      btnCancel: "Бас тарту",
+      btnReturn: "Қайтару",
+      alreadyCurrent: "ACCEPTED талон бар. Алдымен аяқтаңыз/болдырмаңыз.",
+      updated: "Жаңартылды",
+      error: "Қате",
+      actionsOff: "Әрекеттер әкімшімен өшірілген",
+    }
+  };
+
+  let lang = "{{ lang|default:'ru' }}";
+
+  function setLang(l){
+    lang = (l === "kz") ? "kz" : "ru";
+    document.getElementById("btnRu").classList.toggle("active", lang==="ru");
+    document.getElementById("btnKz").classList.toggle("active", lang==="kz");
+    applyUi();
+    refreshQueue(true);
+  }
+
+  function applyUi(){
+    const d = UI[lang];
+    document.getElementById("lblCurrent").textContent = d.current;
+    const btnCall = document.getElementById("btnCallNext");
+    if(btnCall) btnCall.textContent = d.callNext;
+    document.getElementById("btnRefresh").textContent = d.refresh;
+    document.getElementById("lblQueue").textContent = d.queue;
+    document.getElementById("btnLogout").textContent = d.logout;
+
+    document.getElementById("thNum").textContent = d.thNum;
+    document.getElementById("thSvc").textContent = d.thSvc;
+    document.getElementById("thCat").textContent = d.thCat;
+    document.getElementById("thFio").textContent = d.thFio;
+    document.getElementById("thPhone").textContent = d.thPhone;
+    document.getElementById("thStatus").textContent = d.thStatus;
+    document.getElementById("thActions").textContent = d.thActions;
+  }
+
+  function getCookie(name) {
+    const v = `; ${document.cookie}`;
+    const parts = v.split(`; ${name}=`);
+    if (parts.length === 2) return parts.pop().split(';').shift();
+    return "";
+  }
+  const CSRFTOKEN = getCookie("csrftoken");
+
+  function toast(msg){ showToast(msg); }
+
+  let isRefreshing = false;
+
+  async function refreshQueue(showMsg=false){
+    if(!FLAGS.autorefresh && !showMsg){
+      return; // если админ выключил автorefresh — тихо не обновляем
+    }
+    if(isRefreshing) return;
+    isRefreshing = true;
+
+    try{
+      const url = "{% url 'operator_queue_json' %}" + "?lang=" + encodeURIComponent(lang);
+      const r = await fetch(url, {headers: {"X-Requested-With":"XMLHttpRequest"}});
+      if(!r.ok) return;
+
+      const data = await r.json();
+
+      const cur = data.current ? `${data.current.number} (${data.current.status_label})` : "—";
+      document.getElementById("currentBox").textContent = cur;
+
+      const hasCurrent = !!data.current;
+      const btnCall = document.getElementById("btnCallNext");
+      if(btnCall) btnCall.disabled = hasCurrent;
+
+      const tbody = document.getElementById("queueRows");
+      tbody.innerHTML = "";
+
+      const pending = data.pending || [];
+      if(pending.length === 0){
+        const tr = document.createElement("tr");
+        tr.innerHTML = `<td colspan="7">${UI[lang].empty}</td>`;
+        tbody.appendChild(tr);
+      } else {
+        pending.forEach(t => {
+          const tr = document.createElement("tr");
+          const actionsHtml = FLAGS.set_status ? `
+              <button class="btn secondary btnSmall" onclick="setStatus(${t.id}, 'ACCEPTED')">${UI[lang].btnAccept}</button>
+              <button class="btn secondary btnSmall" onclick="setStatus(${t.id}, 'DONE')">${UI[lang].btnDone}</button>
+              <button class="btn secondary btnSmall" onclick="setStatus(${t.id}, 'CANCELLED')">${UI[lang].btnCancel}</button>
+              <button class="btn secondary btnSmall" onclick="setStatus(${t.id}, 'PENDING')">${UI[lang].btnReturn}</button>
+            ` : `<i class="muted">${UI[lang].actionsOff}</i>`;
+
+          tr.innerHTML = `
+            <td><b>${t.number}</b></td>
+            <td>${t.service_label || t.service || ""}</td>
+            <td>${t.category_label || t.category || ""}</td>
+            <td>${t.fio || ""}</td>
+            <td>${t.phone || ""}</td>
+            <td>${t.status_label || t.status || ""}</td>
+            <td>${actionsHtml}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      }
+
+      document.getElementById("lastUpdate").textContent = new Date().toLocaleTimeString();
+      if(showMsg) toast(UI[lang].updated);
+    }catch(e){
+    } finally {
+      isRefreshing = false;
+    }
+  }
+
+  async function callNext(){
+    const btn = document.getElementById("btnCallNext");
+    if(!btn) return;
+    if(btn.disabled){ toast(UI[lang].alreadyCurrent); return; }
+
+    try{
+      await fetch("{% url 'operator_call_next' %}", {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRFTOKEN, "X-Requested-With": "XMLHttpRequest" },
+      });
+      await refreshQueue(true);
+    }catch(e){
+      toast(UI[lang].error);
+    }
+  }
+
+  async function setStatus(id, status){
+    if(!FLAGS.set_status){
+      toast(UI[lang].actionsOff);
+      return;
+    }
+    try{
+      const url = `/operator/ticket/${id}/status/${status}/`;
+      await fetch(url, {
+        method: "POST",
+        headers: { "X-CSRFToken": CSRFTOKEN, "X-Requested-With": "XMLHttpRequest" },
+      });
+      await refreshQueue(true);
+    }catch(e){
+      toast(UI[lang].error);
+    }
+  }
+
+  applyUi();
+  refreshQueue(false);
+
+  {% if flags.autorefresh %}
+    setInterval(()=> refreshQueue(false), 3000);
+  {% endif %}
+</script>
+
+</body>
+</html>

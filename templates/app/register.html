@@ -1,0 +1,191 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>АТУ • Тіркелу</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="title" data-i18n="org_name">АТУ</div>
+        <div class="sub" data-i18n="org_sub"></div>
+      </div>
+
+      <div class="lang">
+        <button data-lang-btn="kz" onclick="I18N.setLang('kz'); I18N.load();">KZ</button>
+        <button data-lang-btn="ru" onclick="I18N.setLang('ru'); I18N.load();">RU</button>
+        <button data-lang-btn="en" onclick="I18N.setLang('en'); I18N.load();">EN</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 class="h1" data-i18n="title_register"></h1>
+
+      <div class="grid two" style="margin-top:14px">
+        <div class="field">
+          <label data-i18n="lbl_fio"></label>
+          <input id="fio" placeholder="Т.А.Ә." />
+        </div>
+        <div class="field">
+          <label data-i18n="lbl_phone"></label>
+          <input id="phone" placeholder="+7 7XX XXX XX XX" />
+        </div>
+      </div>
+
+      <div class="grid two" style="margin-top:12px">
+        <button class="btn secondary" data-i18n="btn_send_code" id="sendBtn"></button>
+        <div class="field">
+          <label data-i18n="lbl_code"></label>
+          <input id="code" placeholder="123456" />
+        </div>
+      </div>
+
+      <div class="grid two" style="margin-top:12px">
+        <button class="btn" data-i18n="btn_verify" id="verifyBtn"></button>
+        <button class="btn secondary" data-i18n="btn_back" onclick="go('/app/index/')"></button>
+      </div>
+
+      <p class="small" style="margin-top:12px">
+        * Қазір бұл демо режим: код “жалған” түрде жасалады (кейін SMS қосамыз).
+      </p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/ui.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+<script>
+  APP.load();
+  I18N.load();
+
+  const fioEl = document.getElementById("fio");
+  const phoneEl = document.getElementById("phone");
+  const codeEl = document.getElementById("code");
+  const sendBtn = document.getElementById("sendBtn");
+  const verifyBtn = document.getElementById("verifyBtn");
+
+  fioEl.value = APP.state.fio || "";
+  phoneEl.value = APP.state.phone || "";
+
+  const OTP_KEY = "atuq_demo_otp_v1";
+  const OTP_COOLDOWN_KEY = "atuq_demo_otp_cooldown_v1";
+
+  function normalizePhone(p){
+    return (p || "").replace(/\s|\(|\)|-/g, "").trim();
+  }
+
+  function genOtp(){
+    return String(Math.floor(100000 + Math.random() * 900000));
+  }
+
+  function sendOtpMock(){
+    const phone = normalizePhone(phoneEl.value);
+    const now = Date.now();
+
+    const cd = Number(localStorage.getItem(OTP_COOLDOWN_KEY) || "0");
+    const left = Math.ceil((cd - now) / 1000);
+    if(left > 0){
+      showToast(`Қайта жіберу: ${left} сек`);
+      return null;
+    }
+
+    const code = genOtp();
+    const exp = now + 3 * 60 * 1000;
+
+    localStorage.setItem(OTP_KEY, JSON.stringify({ phone, code, exp }));
+    localStorage.setItem(OTP_COOLDOWN_KEY, String(now + 60 * 1000));
+
+    console.log("DEMO OTP:", { phone, code, exp });
+    return code;
+  }
+
+  function verifyOtpMock(input){
+    const phone = normalizePhone(phoneEl.value);
+    const raw = localStorage.getItem(OTP_KEY);
+    if(!raw) return false;
+
+    let data;
+    try { data = JSON.parse(raw); } catch(e) { return false; }
+
+    const now = Date.now();
+    if(!data || data.phone !== phone) return false;
+    if(now > Number(data.exp || 0)) return false;
+
+    return String(input) === String(data.code);
+  }
+
+  function startCooldownTicker(){
+    const tick = () => {
+      const now = Date.now();
+      const cd = Number(localStorage.getItem(OTP_COOLDOWN_KEY) || "0");
+      const left = Math.ceil((cd - now) / 1000);
+
+      if(left > 0){
+        sendBtn.disabled = true;
+        sendBtn.textContent = `Код жіберу (${left})`;
+        setTimeout(tick, 250);
+      } else {
+        sendBtn.disabled = false;
+        sendBtn.textContent = I18N.t("btn_send_code") || "Код жіберу";
+      }
+    };
+    tick();
+  }
+
+  startCooldownTicker();
+
+  sendBtn.onclick = () => {
+    const fio = fioEl.value.trim();
+    const phone = normalizePhone(phoneEl.value);
+
+    if(!fio || !phone){
+      showToast("ФИО және телефон енгізіңіз");
+      return;
+    }
+
+    if(phone.length < 10){
+      showToast("Телефон нөмірін дұрыс енгізіңіз");
+      return;
+    }
+
+    APP.state.fio = fio;
+    APP.state.phone = phone;
+    APP.save();
+
+    const otp = sendOtpMock();
+    if(otp){
+      showToast("Демо-код: " + otp);
+      startCooldownTicker();
+    }
+  };
+
+  verifyBtn.onclick = () => {
+    const input = codeEl.value.trim();
+    if(!input){
+      showToast("Код енгізіңіз");
+      return;
+    }
+
+    if(verifyOtpMock(input)){
+      APP.state.verified = true;
+      APP.save();
+
+      showToast(I18N.t("msg_verified") || "Нөмір расталды");
+      setTimeout(()=> go("/app/service/"), 350);
+    } else {
+      showToast(I18N.t("msg_wrong_code") || "Қате код");
+    }
+  };
+</script>
+<!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>

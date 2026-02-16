@@ -1,0 +1,275 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title data-i18n="ticket_title">АТУ • Талон</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    .warn {
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(255,255,255,.04);
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 12px;
+      line-height: 1.6;
+      backdrop-filter: blur(4px);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="card">
+      <h1 class="h1" data-i18n="ticket_title"></h1>
+      <p class="p" data-i18n="ticket_help"></p>
+
+      <div class="grid two" style="margin-top:14px">
+        <div class="card" style="padding:14px">
+          <div class="small" data-i18n="ticket_your_number"></div>
+          <div id="num" style="font-size:44px;font-weight:900;margin-top:6px;background:linear-gradient(135deg,#fff,var(--accent-primary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">—</div>
+        </div>
+
+        <div class="card" style="padding:14px">
+          <div class="small" data-i18n="ticket_desk"></div>
+          <div id="desk" style="font-size:44px;font-weight:900;margin-top:6px;background:linear-gradient(135deg,#fff,var(--accent-secondary));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">—</div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px;padding:14px">
+        <div class="small" data-i18n="ticket_meta"></div>
+        <div id="meta" style="font-size:16px;font-weight:800;margin-top:6px">—</div>
+
+        <div id="extra" style="margin-top:10px; display:none">
+          <div class="small" data-i18n="ticket_online_details"></div>
+          <div id="extraText" style="font-size:14px;font-weight:700;margin-top:6px">—</div>
+        </div>
+
+        <div class="small" style="margin-top:10px" data-i18n="ticket_person"></div>
+        <div id="person" style="font-size:14px;font-weight:700;margin-top:6px">—</div>
+
+        <div class="small" style="margin-top:10px" data-i18n="ticket_status"></div>
+        <div id="status" style="font-size:13px;font-weight:800;margin-top:6px">—</div>
+
+        <div id="warn" class="warn" style="display:none"></div>
+      </div>
+
+      <div class="grid two" style="margin-top:14px">
+        <a class="btn secondary"
+           style="display:flex;align-items:center;justify-content:center;text-decoration:none"
+           href="https://ai.atu.kz/" target="_blank" rel="noreferrer"
+           data-i18n="hint_ai">
+        </a>
+
+        <button class="btn" onclick="resetAndHome()" data-i18n="btn_done"></button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+
+  <script>
+    function safeJsonParse(x){
+      try { return JSON.parse(x); } catch(e){ return null; }
+    }
+
+    function loadTicketFallback(){
+      if(window.APP && typeof APP.load === "function"){
+        APP.load();
+        if(APP.state && APP.state.ticket) return APP.state.ticket;
+      }
+
+      const keys = ["app_state", "APP_STATE", "auroqueue_state", "state"];
+      for(const k of keys){
+        const raw = localStorage.getItem(k);
+        const obj = safeJsonParse(raw);
+        if(obj && obj.ticket) return obj.ticket;
+      }
+
+      const last1 = safeJsonParse(localStorage.getItem("atuq_last_ticket"));
+      if(last1) return last1;
+
+      const last2 = safeJsonParse(localStorage.getItem("last_ticket"));
+      if(last2) return last2;
+
+      return null;
+    }
+
+    function serviceLabel(s){
+      const map = {
+        consultation: "svc_consult",
+        admission: "svc_admission",
+        contest: "svc_contest",
+        online: "svc_online"
+      };
+      const key = map[s];
+      return key ? I18N.t(key) : (s || "—");
+    }
+
+    function catLabel(cat){
+      const map = {
+        after11: "cat_after11",
+        afterCollege: "cat_afterCollege",
+        foreign: "cat_foreign",
+        master: "cat_master",
+        masters: "cat_master",
+        army: "cat_army"
+      };
+      const key = map[cat];
+      return key ? I18N.t(key) : (cat ? String(cat) : "");
+    }
+
+    function trackLabel(track){
+      const map = { design: "track_design", other: "track_other" };
+      const key = map[track];
+      return key ? I18N.t(key) : "";
+    }
+
+    function payLabel(p){
+      const map = { paid: "pay_paid", grant: "pay_grant" };
+      const key = map[p];
+      return key ? I18N.t(key) : "";
+    }
+
+    function profileLabel(p){
+      const map = {
+        math_geo: "prof_math_geo",
+        math_phys: "prof_math_phys",
+        bio_geo: "prof_bio_geo",
+        bio_chem: "prof_bio_chem",
+        chem_phys: "prof_chem_phys",
+        geo_lang: "prof_geo_lang",
+        math_inf: "prof_math_inf",
+        creative: "prof_creative"
+      };
+      const key = map[p];
+      return key ? I18N.t(key) : (p || "");
+    }
+
+    function meetingLabel(m){
+      const map = { zoom: "meeting_zoom", meet: "meeting_meet" };
+      const key = map[m];
+      return key ? I18N.t(key) : (m || "—");
+    }
+
+    function statusLabel(st){
+      const map = {
+        REQUESTED: "st_requested",
+        ASSIGNED: "st_assigned",
+        SCHEDULED: "st_scheduled",
+        PENDING: "st_pending",
+        ACCEPTED: "st_accepted",
+        DONE: "st_done"
+      };
+      const key = map[st];
+      return key ? I18N.t(key) : (st || "—");
+    }
+
+    function formatMeta(ticket){
+      let base = serviceLabel(ticket.service);
+      const cat = catLabel(ticket.category);
+      if(cat) base += " • " + cat;
+
+      if(ticket.service === "consultation" && ticket.track){
+        const tr = trackLabel(ticket.track);
+        if(tr) base += " • " + tr;
+      }
+
+      if(ticket.service === "admission" && ticket.payType){
+        const p = payLabel(ticket.payType);
+        if(p) base += " • " + p;
+      }
+      if(ticket.service === "admission" && ticket.profile){
+        const pr = profileLabel(ticket.profile);
+        if(pr) base += " • " + pr;
+      }
+
+      if(ticket.service === "online" && ticket.meetingType){
+        base += " • " + meetingLabel(ticket.meetingType);
+      }
+
+      return base;
+    }
+
+    async function renderTicket(){
+      await I18N.load();
+
+      const t = loadTicketFallback();
+
+      const numEl = document.getElementById("num");
+      const deskEl = document.getElementById("desk");
+      const metaEl = document.getElementById("meta");
+      const personEl = document.getElementById("person");
+      const statusEl = document.getElementById("status");
+      const warnEl = document.getElementById("warn");
+
+      const extraWrap = document.getElementById("extra");
+      const extraText = document.getElementById("extraText");
+
+      if(!t){
+        numEl.textContent = "—";
+        deskEl.textContent = "—";
+        metaEl.textContent = I18N.t("ticket_not_found");
+        personEl.textContent = "—";
+        statusEl.textContent = "—";
+        warnEl.style.display = "block";
+        warnEl.textContent = I18N.t("ticket_warning");
+        extraWrap.style.display = "none";
+        return;
+      }
+
+      numEl.textContent = t.number ?? "—";
+      deskEl.textContent = (t.desk ?? "—");
+      metaEl.textContent = formatMeta(t);
+
+      const fio = t.fio || (window.APP?.state?.fio) || "—";
+      const phone = t.phone || (window.APP?.state?.phone) || "—";
+      personEl.textContent = fio + " • " + phone;
+
+      statusEl.textContent = statusLabel(t.status);
+
+      if(t.service === "online"){
+        const parts = [];
+        if(t.whatsapp) parts.push(I18N.t("ticket_whatsapp") + ": " + t.whatsapp);
+        if(t.meetingType) parts.push(I18N.t("ticket_meeting") + ": " + meetingLabel(t.meetingType));
+        extraText.textContent = parts.length ? parts.join(" • ") : "—";
+        extraWrap.style.display = "block";
+      } else {
+        extraWrap.style.display = "none";
+      }
+
+      const missing = [];
+      if(!t.service) missing.push("service");
+      if(!t.fio) missing.push("fio");
+      if(!t.phone) missing.push("phone");
+
+      if(t.service !== "online" && !t.category) missing.push("category");
+
+      if(missing.length){
+        warnEl.style.display = "block";
+        warnEl.textContent = I18N.t("ticket_warning") + " (" + missing.join(", ") + ")";
+      } else {
+        warnEl.style.display = "none";
+      }
+    }
+
+    renderTicket();
+
+    function resetAndHome(){
+      if(window.APP && typeof APP.clear === "function"){
+        APP.clear();
+      } else {
+        localStorage.removeItem("atuq_last_ticket");
+        localStorage.removeItem("last_ticket");
+      }
+      window.location.href = "/app/index/";
+    }
+  </script>
+  <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>

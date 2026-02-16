@@ -1,0 +1,311 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title data-i18n="adm_page_title">АТУ • Оқуға түсу</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    #programsWrap.reveal {
+      display:block !important;
+      opacity:0;
+      transform: translateY(8px);
+      transition: all .3s ease;
+    }
+    #programsWrap.reveal.show {
+      opacity:1;
+      transform: translateY(0);
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="title" data-i18n="org_name"></div>
+        <div class="sub" data-i18n="org_sub"></div>
+      </div>
+
+      <div class="lang">
+        <button data-lang-btn="kz" onclick="I18N.setLang('kz')">KZ</button>
+        <button data-lang-btn="ru" onclick="I18N.setLang('ru')">RU</button>
+        <button data-lang-btn="en" onclick="I18N.setLang('en')">EN</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 class="h1" data-i18n="adm_title"></h1>
+      <p class="p" data-i18n="adm_desc"></p>
+
+      <!-- STEP 1 -->
+      <div class="grid two" style="margin-top:14px">
+        <button class="btn" onclick="choosePay('paid')" data-i18n="pay_paid"></button>
+        <button class="btn secondary" id="btnGrant" onclick="choosePay('grant')" data-i18n="pay_grant"></button>
+      </div>
+
+      <div class="grid" style="margin-top:12px">
+        <button class="btn secondary" onclick="go('/app/service/')" data-i18n="btn_back"></button>
+      </div>
+
+      <!-- STEP 2 -->
+      <div id="step2" style="display:none; margin-top:16px">
+        <div class="card" style="padding:14px">
+          <div class="small" data-i18n="adm_category"></div>
+          <div class="grid" style="margin-top:10px">
+            <button class="btn secondary" onclick="chooseCategory('after11')" data-i18n="cat_after11"></button>
+            <button class="btn secondary" onclick="chooseCategory('afterCollege')" data-i18n="cat_afterCollege"></button>
+            <button class="btn secondary" onclick="chooseCategory('foreign')" data-i18n="cat_foreign"></button>
+            <!-- ВАЖНО: category отправляем как "master" (backend ждёт master), но текст берём cat_masters -->
+            <button class="btn secondary" onclick="chooseCategory('master')" data-i18n="cat_masters"></button>
+            <button class="btn secondary" onclick="chooseCategory('army')" data-i18n="cat_army"></button>
+          </div>
+        </div>
+      </div>
+
+      <!-- DOCS + PROFILE + PROGRAMS -->
+      <div id="docs" style="display:none; margin-top:16px">
+        <div class="card" style="padding:14px">
+          <div class="small" data-i18n="adm_docs_title"></div>
+          <div id="docsList" class="p" style="margin-top:10px; line-height:1.75"></div>
+
+          <!-- PROFILE SUBJECTS -->
+          <div id="profileWrap" style="display:none; margin-top:14px">
+            <div class="small" data-i18n="adm_profile_title"></div>
+            <div class="grid two" style="margin-top:10px">
+              <button class="btn secondary" onclick="pickProfile('math_geo')" data-i18n="prof_math_geo"></button>
+              <button class="btn secondary" onclick="pickProfile('math_phys')" data-i18n="prof_math_phys"></button>
+              <button class="btn secondary" onclick="pickProfile('bio_geo')" data-i18n="prof_bio_geo"></button>
+              <button class="btn secondary" onclick="pickProfile('bio_chem')" data-i18n="prof_bio_chem"></button>
+              <button class="btn secondary" onclick="pickProfile('chem_phys')" data-i18n="prof_chem_phys"></button>
+              <button class="btn secondary" onclick="pickProfile('geo_lang')" data-i18n="prof_geo_lang"></button>
+              <button class="btn secondary" onclick="pickProfile('math_inf')" data-i18n="prof_math_inf"></button>
+              <button class="btn secondary" onclick="pickProfile('creative')" data-i18n="prof_creative"></button>
+            </div>
+
+            <!-- PROGRAMS (только UI, в БД не отправляем) -->
+            <div id="programsWrap" class="card" style="padding:14px; margin-top:12px; display:none">
+              <div class="small" data-i18n="adm_programs_title"></div>
+              <div id="programsList" class="p" style="margin-top:10px; line-height:1.75"></div>
+            </div>
+          </div>
+
+          <div class="grid two" style="margin-top:14px">
+            <button class="btn secondary" onclick="resetDocs()" data-i18n="btn_back"></button>
+            <button class="btn" onclick="issueTicket()" data-i18n="adm_get_ticket"></button>
+          </div>
+
+          <p class="small" style="margin-top:10px" data-i18n="adm_copy_hint"></p>
+        </div>
+      </div>
+
+      <div class="steps" aria-hidden="true">
+        <div class="stepDot active"></div><div class="stepLine"></div>
+        <div class="stepDot"></div><div class="stepLine"></div>
+        <div class="stepDot"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/ui.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+
+  <script>
+    APP.load();
+    I18N.load();
+
+    function refreshDocsIfVisible(){
+      if(document.getElementById("docs").style.display !== "none" && payType && category){
+        document.getElementById("docsList").innerHTML = getDocsHtml(payType, category);
+      }
+    }
+
+    const _oldSetLang = I18N.setLang;
+    I18N.setLang = (l) => { _oldSetLang(l); setTimeout(refreshDocsIfVisible, 50); };
+
+    if(!APP.state.verified){
+      showToast(I18N.t("msg_need_verify"));
+      setTimeout(()=> go('/app/register/'), 400);
+    }
+
+    let payType = null;   // paid | grant
+    let category = null;  // after11/afterCollege/foreign/master/army
+    let profile = null;   // creative/math_inf/...
+    let programs = [];    // только UI
+
+    async function initFlags(){
+      const cfg = await loadConfig();
+      const enabled = !!cfg?.flags?.admissionGrantEnabled;
+
+      const btn = document.getElementById("btnGrant");
+      if(!enabled){
+        btn.setAttribute("data-i18n", "adm_grant_disabled");
+        btn.classList.add("disabled");
+        btn.onclick = () => showToast(I18N.t("adm_grant_off"));
+        I18N.load();
+      }
+    }
+    initFlags();
+
+    function choosePay(type){
+      payType = type;
+      document.getElementById("step2").style.display = "block";
+      showToast(type === "paid" ? I18N.t("adm_paid_chosen") : I18N.t("adm_grant_chosen"));
+    }
+
+    function chooseCategory(cat){
+      category = cat;
+      profile = null;
+      programs = [];
+      document.querySelectorAll("#profileWrap .btn").forEach(b => b.classList.remove("active"));
+
+      document.getElementById("docs").style.display = "block";
+      document.getElementById("docsList").innerHTML = getDocsHtml(payType, category);
+
+      const needProfile = (category === "after11");
+      document.getElementById("profileWrap").style.display = needProfile ? "block" : "none";
+
+      const pw = document.getElementById("programsWrap");
+      pw.classList.remove("reveal","show");
+      pw.style.display = "none";
+      document.getElementById("programsList").innerHTML = "";
+    }
+
+    function resetDocs(){
+      document.getElementById("docs").style.display = "none";
+      category = null;
+      profile = null;
+      programs = [];
+    }
+
+    function pickProfile(p){
+      profile = p;
+
+      document.querySelectorAll("#profileWrap .btn").forEach(b => b.classList.remove("active"));
+      document.querySelectorAll("#profileWrap .btn").forEach(b => {
+        const key = b.getAttribute("data-i18n");
+        const map = {
+          prof_math_geo:"math_geo",
+          prof_math_phys:"math_phys",
+          prof_bio_geo:"bio_geo",
+          prof_bio_chem:"bio_chem",
+          prof_chem_phys:"chem_phys",
+          prof_geo_lang:"geo_lang",
+          prof_math_inf:"math_inf",
+          prof_creative:"creative"
+        };
+        if(map[key] === p) b.classList.add("active");
+      });
+
+      programs = getProgramsByProfile(p);
+
+      const list = document.getElementById("programsList");
+      if(programs.length === 0){
+        list.innerHTML = "• " + I18N.t("adm_programs_later");
+      } else {
+        list.innerHTML = programs.map(x => "• " + x).join("<br>");
+      }
+
+      const wrap = document.getElementById("programsWrap");
+      wrap.style.display = "block";
+      wrap.classList.add("reveal");
+      requestAnimationFrame(() => wrap.classList.add("show"));
+    }
+
+    function getProgramsByProfile(p){
+      const base = {
+        math_geo: [
+          "6B04106 – Қаржы (Finances)",
+          "6B04101 – Экономика (Economics)",
+          "6B04102 – Менеджмент (Management)",
+          "6B04103 – Мемлекеттік және жергілікті басқару"
+        ],
+        math_phys: [
+          "6B07109 – Цифрлық энергетика",
+          "6B07103 – Автоматтандыру және басқару",
+          "6B07104 – Роботтар және робототехникалық жүйелер",
+          "6B07105 – Технологиялық машиналар және жабдық"
+        ],
+        bio_geo: [
+          "6B05201 – Экология",
+          "6B11101 – Туризм"
+        ],
+        bio_chem: [
+          "6B05101 – Биотехнология",
+          "6B07203 – Технология фармацевтического производства",
+          "6B07201 – Технология продовольственных продуктов"
+        ],
+        chem_phys: [
+          "6B07101 – Химиялық технология (органикалық заттар)",
+          "6B07202 – Технология перерабатывающих производств"
+        ],
+        geo_lang: [
+          "6B11101 – Туризм",
+          "6B11102 – Ресторанное дело и гостиничный бизнес"
+        ],
+        math_inf: [
+          "6B06101 – Ақпараттық жүйелер",
+          "6B06102 – Есептеу техникасы және БҚ",
+          "6B06103 – Бағдарламалық инженерия",
+          "6B06104 – Жасанды интеллект технологиялары"
+        ],
+        creative: [
+          "6B02101 – Дизайн",
+          "6B02102 – Fashion дизайн"
+        ]
+      };
+      return base[p] || [];
+    }
+
+    function getDocsHtml(pay, cat){
+      const common = I18N.t("docs_common_html");
+      let key = "docs_common_html";
+
+      if(pay === "paid" && cat === "after11") key = "docs_paid_after11_html";
+      else if(pay === "paid" && cat === "afterCollege") key = "docs_paid_afterCollege_html";
+      else if(cat === "foreign") key = "docs_foreign_html";
+      else if(cat === "master") key = "docs_masters_html";
+      else if(cat === "army") key = "docs_army_html";
+
+      return I18N.t(key).replace("{common}", common);
+    }
+
+    // ✅ ВАЖНО: здесь теперь создаём талон ЧЕРЕЗ API
+    async function issueTicket(){
+      if(!payType || !category){
+        showToast(I18N.t("adm_need_pay_cat"));
+        return;
+      }
+      if(category === "after11" && !profile){
+        showToast(I18N.t("adm_need_profile"));
+        return;
+      }
+
+      const payload = {
+        service: "admission",
+        pay_type: payType,       // ✅ pay_type
+        category: category,      // ✅ master (не masters)
+        profile: profile || "",  // можно пустым, если не after11
+        fio: APP.state.fio,
+        phone: APP.state.phone
+      };
+
+      try{
+        const created = await apiCreateTicket(payload); // backend вернёт number/desk/status/created_at
+        saveTicket(created);
+        go("/app/done/");
+      }catch(e){
+        showToast("API error: " + (e?.message || e));
+      }
+    }
+  </script>
+  <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>

@@ -1,0 +1,59 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title> <img src="C:\Users\Semser\Desktop\atu_queue\static\assets\logo_atu.png" alt="">• Электрондық кезек</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="title" data-i18n="org_name"><img src="C:\Users\Semser\Desktop\atu_queue\static\assets\logo_atu.png" alt=""></div>
+        <div class="sub" data-i18n="org_sub"></div>
+      </div>
+
+      <div class="lang">
+        <button data-lang-btn="kz" onclick="I18N.setLang('kz'); I18N.load();">KZ</button>
+        <button data-lang-btn="ru" onclick="I18N.setLang('ru'); I18N.load();">RU</button>
+        <button data-lang-btn="en" onclick="I18N.setLang('en'); I18N.load();">EN</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 class="h1" data-i18n="title_welcome"></h1>
+      <p class="p" data-i18n="p_welcome"></p>
+
+      <div class="steps" aria-hidden="true" style="margin-top:18px">
+        <div class="stepDot active"></div><div class="stepLine"></div>
+        <div class="stepDot"></div><div class="stepLine"></div>
+        <div class="stepDot"></div>
+      </div>
+
+      <div style="margin-top:16px" class="grid two">
+        <button class="btn" data-i18n="btn_start" onclick="go('/app/register/')"></button>
+        <a class="btn secondary" style="display:flex;align-items:center;justify-content:center;text-decoration:none"
+           href="https://ai.atu.kz/" target="_blank" rel="noreferrer">
+          <span data-i18n="hint_ai"></span>
+        </a>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/ui.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+  <script>
+    APP.load();
+    I18N.load();
+  </script>
+  <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>

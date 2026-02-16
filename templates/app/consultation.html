@@ -1,0 +1,120 @@
+  {% load static %}
+  <!doctype html>
+  <html lang="kk">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>АТУ • Кеңес алу</title>
+    <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+    <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="brand">
+          <div class="title" data-i18n="org_name">АТУ</div>
+          <div class="sub" data-i18n="org_sub"></div>
+        </div>
+
+        <div class="lang">
+          <button data-lang-btn="kz" onclick="I18N.setLang('kz'); I18N.load();">KZ</button>
+          <button data-lang-btn="ru" onclick="I18N.setLang('ru'); I18N.load();">RU</button>
+          <button data-lang-btn="en" onclick="I18N.setLang('en'); I18N.load();">EN</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h1 class="h1" data-i18n="title_consult"></h1>
+        <p class="p" data-i18n="p_consult"></p>
+
+        <div class="grid" style="margin-top:14px">
+          <button class="btn" onclick="chooseCategory('after11')" data-i18n="cat_after11"></button>
+          <button class="btn" onclick="chooseCategory('afterCollege')" data-i18n="cat_afterCollege"></button>
+          <button class="btn" onclick="chooseCategory('foreign')" data-i18n="cat_foreign"></button>
+          <button class="btn" onclick="chooseCategory('master')" data-i18n="cat_master"></button>
+          <button class="btn" onclick="chooseCategory('army')" data-i18n="cat_army"></button>
+
+          <button class="btn secondary" data-i18n="btn_back" onclick="go('/app/service/')"></button>
+        </div>
+
+        <div class="steps" aria-hidden="true">
+          <div class="stepDot active"></div><div class="stepLine"></div>
+          <div class="stepDot active"></div><div class="stepLine"></div>
+          <div class="stepDot"></div>
+        </div>
+      </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="{% static 'assets/js/i18n.js' %}"></script>
+    <script src="{% static 'assets/js/ui.js' %}"></script>
+    <script src="{% static 'assets/js/app.js' %}"></script>
+
+    <script>
+      APP.load();
+      I18N.load();
+
+      if(!APP.state.verified){
+        showToast(I18N.t("msg_need_verify"));
+        setTimeout(()=> go('/app/register/'), 400);
+      }
+
+      let selectedCategory = null;
+
+      function chooseCategory(category){
+        selectedCategory = category;
+        document.getElementById("modalOverlay").classList.add("show");
+      }
+
+      async function pickDirection(direction){
+        document.getElementById("modalOverlay").classList.remove("show");
+
+        // сохраняем выбор в state (можно оставить)
+        APP.state.category = selectedCategory;
+        APP.state.track = direction;
+        APP.save();
+
+        // ✅ отправляем ТОЛЬКО то, что вводит пользователь + выбор
+        const payload = {
+          service: "consultation",
+          category: selectedCategory,
+          track: direction,
+          fio: APP.state.fio,
+          phone: APP.state.phone
+        };
+
+        try{
+          const created = await apiCreateTicket(payload); // backend вернет number/desk/status
+          saveTicket(created);
+          go("/app/done/");
+        }catch(e){
+          showToast("API error: " + (e?.message || e));
+        }
+      }
+
+      function closeModal(){
+        document.getElementById("modalOverlay").classList.remove("show");
+      }
+    </script>
+
+    <div id="modalOverlay" class="modalOverlay">
+      <div class="modal">
+        <div class="modalHeader">
+          <h3 data-i18n="modal_track_title"></h3>
+          <button class="closeBtn" onclick="closeModal()">✕</button>
+        </div>
+
+        <div class="grid" style="margin-top:20px">
+          <button class="btn" onclick="pickDirection('design')" data-i18n="track_design"></button>
+          <button class="btn secondary" onclick="pickDirection('other')" data-i18n="track_other"></button>
+        </div>
+
+        <p class="small" style="margin-top:20px" data-i18n="hint_auto_route"></p>
+      </div>
+    </div>
+    <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+  </body>
+  </html>

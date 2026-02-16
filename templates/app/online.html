@@ -1,0 +1,119 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>АТУ • Онлайн өтініш</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="title" data-i18n="org_name">АТУ</div>
+        <div class="sub">Қабылдау комиссиясы • Онлайн</div>
+      </div>
+
+      <div class="lang">
+        <button data-lang-btn="kz" onclick="I18N.setLang('kz'); I18N.load();">KZ</button>
+        <button data-lang-btn="ru" onclick="I18N.setLang('ru'); I18N.load();">RU</button>
+        <button data-lang-btn="en" onclick="I18N.setLang('en'); I18N.load();">EN</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 class="h1" data-i18n="svc_online">Онлайн өтініш</h1>
+      <p class="p">
+        Бұл қызмет шалғай өңірлерден немесе келе алмайтын талапкерлерге арналған.
+        Тех. хатшы сізбен WhatsApp арқылы байланысады.
+      </p>
+
+      <!-- WhatsApp -->
+      <div class="field" style="margin-top:14px">
+        <label data-i18n="ticket_whatsapp">WhatsApp</label>
+        <input id="whatsapp" placeholder="+7 7XX XXX XX XX">
+      </div>
+
+      <!-- Meeting type -->
+      <div class="small" style="margin-top:14px" data-i18n="ticket_meeting">Байланыс</div>
+      <div class="grid two" style="margin-top:10px">
+        <button id="btnZoom" class="btn secondary" onclick="pickMeeting('zoom')" data-i18n="meeting_zoom">Zoom</button>
+        <button id="btnMeet" class="btn secondary" onclick="pickMeeting('meet')" data-i18n="meeting_meet">Google Meet</button>
+      </div>
+
+      <div class="grid two" style="margin-top:16px">
+        <button class="btn secondary" onclick="go('/app/service/')" data-i18n="btn_back">Артқа</button>
+        <button class="btn" onclick="submitOnline()">Өтініш жіберу</button>
+      </div>
+
+      <p class="small" style="margin-top:10px">
+        * Құжаттар онлайн түрде жіберіледі, қол қою келісілген форматта жүргізіледі.
+      </p>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/ui.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+  <script>
+    APP.load();
+    I18N.load();
+
+    if(!APP.state.verified){
+      showToast(I18N.t("msg_need_verify"));
+      setTimeout(()=> go('/app/register/'), 400);
+    }
+
+    let meetingType = null;
+
+    function pickMeeting(type){
+      meetingType = type;
+
+      // просто визуально подсветим выбранную кнопку
+      document.getElementById("btnZoom").classList.remove("active");
+      document.getElementById("btnMeet").classList.remove("active");
+      if(type === "zoom") document.getElementById("btnZoom").classList.add("active");
+      if(type === "meet") document.getElementById("btnMeet").classList.add("active");
+
+      showToast(type === "zoom" ? "Zoom таңдалды" : "Google Meet таңдалды");
+    }
+
+    async function submitOnline(){
+      const whatsapp = document.getElementById("whatsapp").value.trim();
+
+      if(!whatsapp){
+        showToast("WhatsApp нөмірін енгізіңіз");
+        return;
+      }
+      if(!meetingType){
+        showToast("Байланыс форматын таңдаңыз");
+        return;
+      }
+
+      // ✅ отправляем только поля модели
+      const payload = {
+        service: "online",
+        meeting_type: meetingType,
+        whatsapp: whatsapp,
+        fio: APP.state.fio,
+        phone: APP.state.phone
+      };
+
+      try{
+        const created = await apiCreateTicket(payload); // backend вернёт number/status/created_at (+ desk может быть null)
+        saveTicket(created);
+        go("/app/done/");
+      }catch(e){
+        showToast("API error: " + (e?.message || e));
+      }
+    }
+  </script>
+  <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>

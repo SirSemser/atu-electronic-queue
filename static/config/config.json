@@ -1,0 +1,18 @@
+{
+  "org": {
+    "name": "АТУ",
+    "sub": "Қабылдау комиссиясы • Электрондық кезек"
+  },
+  "flags": {
+    "contestEnabled": true,
+    "admissionGrantEnabled": true
+  },
+  "desks": {
+    "design": [1, 2],
+    "foreign": [11, 12],
+    "master": [15],
+    "orphans": [10],
+    "army": [5],
+    "default": [3, 4, 6, 7, 8, 9, 13, 14, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]
+  }
+}

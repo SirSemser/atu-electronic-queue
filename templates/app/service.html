@@ -1,0 +1,116 @@
+{% load static %}
+<!doctype html>
+<html lang="kk">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title data-i18n="title_service">АТУ • Қызмет</title>
+  <link rel="stylesheet" href="{% static 'assets/css/app.css' %}">
+  <!-- Шрифты с поддержкой казахского -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Roboto:wght@300;400;500;700&family=Noto+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="brand">
+        <div class="title" data-i18n="org_name"></div>
+        <div class="sub" data-i18n="org_sub"></div>
+      </div>
+      <div class="lang">
+        <button data-lang-btn="kz" onclick="I18N.setLang('kz')">KZ</button>
+        <button data-lang-btn="ru" onclick="I18N.setLang('ru')">RU</button>
+        <button data-lang-btn="en" onclick="I18N.setLang('en')">EN</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h1 class="h1" data-i18n="title_service"></h1>
+      <p class="p" data-i18n="svc_desc"></p>
+
+      <div class="grid" style="margin-top:14px">
+        <button class="btn" id="btnConsult" onclick="pick('consultation')" data-i18n="svc_consult"></button>
+        <button class="btn" id="btnAdmission" onclick="pick('admission')" data-i18n="svc_admission"></button>
+
+        <!-- online: раньше было текстом “вручную”, теперь тоже через i18n -->
+        <button class="btn secondary" id="btnOnline" onclick="pick('online')" data-i18n="svc_online"></button>
+
+        <button class="btn secondary" id="btnContest" onclick="pick('contest')" data-i18n="svc_contest"></button>
+        <button class="btn secondary" onclick="go('/app/index/')" data-i18n="btn_back"></button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="{% static 'assets/js/i18n.js' %}"></script>
+  <script src="{% static 'assets/js/ui.js' %}"></script>
+  <script src="{% static 'assets/js/app.js' %}"></script>
+
+  <script>
+    APP.load();
+    I18N.load();
+
+    if(!APP.state.verified){
+      showToast(I18N.t("msg_need_verify"));
+      setTimeout(()=> go('/app/register/'), 400);
+    }
+
+function setDisabled(btn, offTextKey){
+  btn.classList.add("disabled");
+  btn.disabled = true; // ✅ важно
+  btn.onclick = (e) => {
+    e.preventDefault();
+    showToast(I18N.t(offTextKey) || "Отключено");
+    return false;
+  };
+}
+
+initFlags()
+    async function initFlags(){
+      const cfg = await loadConfig();
+      FLAGS = cfg?.flags || {};
+
+
+      // helper: если флага нет — считаем ON (чтобы ничего случайно не сломалось)
+      const isOn = (key) => (cfg?.flags?.[key] !== false);
+
+      // service flags keys (админ будет менять их в БД)
+      // service.consultation / service.admission / service.online / service.contest
+      const btnConsult = document.getElementById("btnConsult");
+      const btnAdmission = document.getElementById("btnAdmission");
+      const btnOnline = document.getElementById("btnOnline");
+      const btnContest = document.getElementById("btnContest");
+
+      if(!isOn("service.consultation")) setDisabled(btnConsult, "svc_off");
+      if(!isOn("service.admission")) setDisabled(btnAdmission, "svc_off");
+      if(!isOn("service.online")) setDisabled(btnOnline, "svc_off");
+      if(!isOn("service.contest")) {
+        // оставим твою логику disabled + текст
+        btnContest.setAttribute("data-i18n", "svc_contest_disabled");
+        setDisabled(btnContest, "svc_contest_off");
+        I18N.load();
+      }
+
+      // UI texts from cfg.ui (если захотим — можно прокинуть в I18N позже)
+      // сейчас это просто подготовка под “админ меняет подпись кнопок”
+    }
+    initFlags();
+
+    function pick(service){
+  // защита по флагам (если выключено — не открывать)
+  if(FLAGS?.[`service.${service}`] === false){
+    showToast(I18N.t("svc_off"));
+    return;
+  }
+
+  if(service === "consultation") return go("/app/consultation/");
+  if(service === "admission") return go("/app/admission/");
+  if(service === "contest") return go("/app/contest/");
+  if(service === "online") return go("/app/online/");
+}
+
+  </script>
+  <!-- Новые анимации -->
+<script src="{% static 'assets/js/animations.js' %}"></script>
+</body>
+</html>
